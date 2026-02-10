@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>JavaScript Polyfills Demo</title>
+</head>
+<body>
+  <h2>Open Console to See Polyfill Outputs</h2>
+
+  <script>
+    /* ---------------- MAP ---------------- */
+    Array.prototype.myMap = function (cb) {
+      let result = [];
+      for (let i = 0; i < this.length; i++) {
+        result.push(cb(this[i], i, this));
+      }
+      return result;
+    };
+
+    /* ---------------- FILTER ---------------- */
+    Array.prototype.myFilter = function (cb) {
+      let result = [];
+      for (let i = 0; i < this.length; i++) {
+        if (cb(this[i], i, this)) result.push(this[i]);
+      }
+      return result;
+    };
+
+    /* ---------------- REDUCE ---------------- */
+    Array.prototype.myReduce = function (cb, initialValue) {
+      let acc = initialValue !== undefined ? initialValue : this[0];
+      let start = initialValue !== undefined ? 0 : 1;
+
+      for (let i = start; i < this.length; i++) {
+        acc = cb(acc, this[i], i, this);
+      }
+      return acc;
+    };
+
+    /* ---------------- CALL ---------------- */
+    Function.prototype.myCall = function (context, ...args) {
+      context = context || window;
+      context.fn = this;
+      let result = context.fn(...args);
+      delete context.fn;
+      return result;
+    };
+
+    /* ---------------- BIND ---------------- */
+    Function.prototype.myBind = function (context, ...args1) {
+      const fn = this;
+      return function (...args2) {
+        return fn.apply(context, [...args1, ...args2]);
+      };
+    };
+
+    /* ---------------- ONCE ---------------- */
+    function once(fn) {
+      let called = false;
+      let result;
+      return function (...args) {
+        if (!called) {
+          result = fn.apply(this, args);
+          called = true;
+        }
+        return result;
+      };
+    }
+
+    /* ---------------- MEMOIZE ---------------- */
+    function memoize(fn) {
+      let cache = {};
+      return function (...args) {
+        let key = JSON.stringify(args);
+        if (cache[key]) return cache[key];
+        let result = fn.apply(this, args);
+        cache[key] = result;
+        return result;
+      };
+    }
+
+    /* ---------------- PROMISE (Basic) ---------------- */
+    function MyPromise(executor) {
+      let onResolve, onReject;
+
+      function resolve(value) {
+        setTimeout(() => onResolve && onResolve(value), 0);
+      }
+
+      function reject(value) {
+        setTimeout(() => onReject && onReject(value), 0);
+      }
+
+      this.then = function (cb) {
+        onResolve = cb;
+        return this;
+      };
+
+      this.catch = function (cb) {
+        onReject = cb;
+        return this;
+      };
+
+      executor(resolve, reject);
+    }
+
+    /* ---------------- PROMISE.ALL ---------------- */
+    Promise.myAll = function (promises) {
+      return new Promise((resolve, reject) => {
+        let results = [];
+        let count = 0;
+
+        promises.forEach((p, i) => {
+          Promise.resolve(p)
+            .then(res => {
+              results[i] = res;
+              count++;
+              if (count === promises.length) resolve(results);
+            })
+            .catch(reject);
+        });
+      });
+    };
+
+    /* ---------------- DEBOUNCE ---------------- */
+    function debounce(fn, delay) {
+      let timer;
+      return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+
+    /* ---------------- THROTTLE ---------------- */
+    function throttle(fn, limit) {
+      let waiting = false;
+      return function (...args) {
+        if (!waiting) {
+          fn.apply(this, args);
+          waiting = true;
+          setTimeout(() => waiting = false, limit);
+        }
+      };
+    }
+
+    /* ================== TESTING OUTPUT ================== */
+
+    const arr = [1, 2, 3, 4];
+
+    console.log("MAP:", arr.myMap(x => x * 2));
+    console.log("FILTER:", arr.myFilter(x => x > 2));
+    console.log("REDUCE:", arr.myReduce((a, b) => a + b, 0));
+
+    function greet(greeting) { return greeting + " " + this.name; }
+    const person = { name: "Vidya" };
+    console.log("CALL:", greet.myCall(person, "Hello"));
+
+    const bound = greet.myBind(person, "Hi");
+    console.log("BIND:", bound());
+
+    const runOnce = once(() => "Runs only once!");
+    console.log("ONCE:", runOnce(), runOnce());
+
+    const square = memoize(x => x * x);
+    console.log("MEMOIZE:", square(5), square(5));
+
+    const p1 = new MyPromise((res) => setTimeout(() => res("Done!"), 1000));
+    p1.then(data => console.log("PROMISE:", data));
+
+    Promise.myAll([Promise.resolve(1), Promise.resolve(2)])
+      .then(data => console.log("PROMISE.ALL:", data));
+
+    const debounced = debounce(() => console.log("DEBOUNCED"), 1000);
+    debounced(); debounced(); debounced();
+
+    const throttled = throttle(() => console.log("THROTTLED"), 2000);
+    throttled(); throttled(); throttled();
+  </script>
+</body>
+</html>
